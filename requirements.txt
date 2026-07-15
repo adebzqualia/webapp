@@ -1,0 +1,3 @@
+# Dépendances Python de l'API POPS et de sa suite de tests.
+# Ce fichier permet de créer le venv depuis la racine du projet.
+-r backend/requirements.txt
