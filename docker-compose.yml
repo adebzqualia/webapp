@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pops}
+      POSTGRES_USER: ${POSTGRES_USER:-pops}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pops}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pops} -d ${POSTGRES_DB:-pops}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pops}:${POSTGRES_PASSWORD:-pops}@db:5432/${POSTGRES_DB:-pops}
+      STORAGE_ROOT: /app/data/storage
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
+      MAX_ZIP_UNCOMPRESSED_MB: ${MAX_ZIP_UNCOMPRESSED_MB:-250}
+      MAX_ZIP_COMPRESSION_RATIO: ${MAX_ZIP_COMPRESSION_RATIO:-100}
+      AUTH_API_KEY: ${AUTH_API_KEY:-}
+      DEFAULT_ORGANIZATION: ${DEFAULT_ORGANIZATION:-demo}
+      DEFAULT_USER: ${DEFAULT_USER:-demo-user}
+      CORS_ORIGINS: http://localhost:5173
+    volumes:
+      - ./backend:/app
+      - pops_storage:/app/data/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  web:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8000/api
+      VITE_USE_MOCKS: "false"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - api
+    ports:
+      - "5173:5173"
+
+volumes:
+  postgres_data:
+  pops_storage:
+  frontend_node_modules:
